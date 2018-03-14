@@ -1,40 +1,49 @@
+/*
+ * cp1.c
+ *      version 1 of cp - uses read and write with tunable buffer size
+ *
+ *      usage: cp1 src dest
+ */
 #include <stdlib.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <unistd.h>
+#include <fcntl.h>
 
-#define BUFSIZE 8
+#define BUFFERSIZE 1024
+#define COPYMODE 0644
 
-int main(int argc, char *argv[])
+void oops(char *, char *);
+
+int main(int ac, char *av[])
 {
-  int  infd, outfd;
-  char buf[BUFSIZE];
-  int  readlen;
+  int in_fd, out_fd, n_chars;
+  char buf[BUFFERSIZE];
 
-  if (argc < 3) {
-    fprintf(stderr, "cp command needs two arguments.\n");
-    exit(1);
-  } 
-
-  if ( (infd = open(argv[1], O_RDONLY)) == -1 ) {
-    perror(argv[1]);
+  if (ac != 3) {
+    fprintf(stderr, "usage: %s source destination\n", *av);
     exit(1);
   }
 
-  if ( (outfd = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU)) == -1 ) {
-    perror(argv[2]);
-    exit(1);
-  }
+  if ( (in_fd = open(av[1], O_RDONLY)) == -1 ) 
+    oops("Cannot open", av[1]);
 
-  while ( (readlen = read(infd, buf, BUFSIZE)) == BUFSIZE ) {
-    write(outfd, buf, BUFSIZE);
-  }
-  write(outfd, buf, readlen);
+  if ( (out_fd = creat(av[2], COPYMODE)) == -1 )
+    oops("Cannot creat", av[2]);
 
-  close(infd);
-  close(outfd);
+  while ( (n_chars = read(in_fd, buf, BUFFERSIZE)) > 0 )
+    if ( write(out_fd, buf, n_chars) != n_chars )
+      oops("Write error to", av[2]);
 
-  puts("FINISHED...");
+  if ( n_chars == -1 )
+    oops("Read error from", av[1]);
 
-  return 0; 
+  if ( close(in_fd) == -1 || close(out_fd) == -1 )
+    oops("Error closing files", "");
+}
+
+void oops(char *s1, char *s2)
+{
+  fprintf(stderr, "Error: %s ", s1);
+  perror(s2);
+  exit(1);
 }
